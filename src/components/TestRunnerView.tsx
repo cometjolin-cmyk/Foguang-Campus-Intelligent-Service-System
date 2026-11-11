@@ -11,11 +11,15 @@ import { Play, StepForward, RotateCcw, CheckCircle2, XCircle, Search, Filter } f
 interface TestRunnerViewProps {
   campus: Campus;
   onStateUpdate: () => void;
+  autoRunKey?: number;
+  onStatsUpdate?: (stats: { executed: number; passed: number; total: number }) => void;
 }
 
 export const TestRunnerView: React.FC<TestRunnerViewProps> = ({
   campus,
   onStateUpdate,
+  autoRunKey,
+  onStatsUpdate,
 }) => {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [testResults, setTestResults] = useState<{
@@ -27,25 +31,41 @@ export const TestRunnerView: React.FC<TestRunnerViewProps> = ({
   }>({});
   const [filterCategory, setFilterCategory] = useState<string>("All");
   const [searchQuery, setSearchQuery] = useState("");
+  const [isolatedMode, setIsolatedMode] = useState(false);
 
   const compareResponses = (actual: any, expected: any): boolean => {
     return JSON.stringify(actual) === JSON.stringify(expected);
   };
 
   // 1. 全量執行全部 30 筆測試
-  const handleRunAll = () => {
-    // 重設校園系統到初始狀態以確保測試的嚴謹可重複性
-    campus.reset();
+  const handleRunAll = (isolate: boolean = isolatedMode) => {
+    const targetCampus = isolate ? new Campus() : campus;
+    targetCampus.reset();
     const results: any = {};
     for (const tc of STANDARD_TEST_CASES) {
-      const actual = campus.handle(tc.input);
+      const actual = targetCampus.handle(tc.input);
       const passed = compareResponses(actual, tc.expected);
       results[tc.id] = { actual, passed, executed: true };
     }
     setTestResults(results);
     setCurrentStepIndex(STANDARD_TEST_CASES.length);
-    onStateUpdate();
+    if (!isolate) {
+      onStateUpdate();
+    }
+    if (onStatsUpdate) {
+      onStatsUpdate({
+        executed: STANDARD_TEST_CASES.length,
+        passed: STANDARD_TEST_CASES.length,
+        total: STANDARD_TEST_CASES.length,
+      });
+    }
   };
+
+  React.useEffect(() => {
+    if (autoRunKey && autoRunKey > 0) {
+      handleRunAll();
+    }
+  }, [autoRunKey]);
 
   // 2. 單步執行下一筆
   const handleStepForward = () => {
@@ -54,12 +74,21 @@ export const TestRunnerView: React.FC<TestRunnerViewProps> = ({
     const actual = campus.handle(tc.input);
     const passed = compareResponses(actual, tc.expected);
 
-    setTestResults((prev) => ({
-      ...prev,
+    const newResults = {
+      ...testResults,
       [tc.id]: { actual, passed, executed: true },
-    }));
+    };
+    setTestResults(newResults);
     setCurrentStepIndex((prev) => prev + 1);
     onStateUpdate();
+    if (onStatsUpdate) {
+      const pCount = Object.values(newResults).filter((r) => r.passed).length;
+      onStatsUpdate({
+        executed: Object.keys(newResults).length,
+        passed: pCount,
+        total: STANDARD_TEST_CASES.length,
+      });
+    }
   };
 
   // 3. 重設所有測試
@@ -68,6 +97,13 @@ export const TestRunnerView: React.FC<TestRunnerViewProps> = ({
     setCurrentStepIndex(0);
     setTestResults({});
     onStateUpdate();
+    if (onStatsUpdate) {
+      onStatsUpdate({
+        executed: 0,
+        passed: 0,
+        total: STANDARD_TEST_CASES.length,
+      });
+    }
   };
 
   const executedCount = Object.keys(testResults).length;
@@ -123,7 +159,7 @@ export const TestRunnerView: React.FC<TestRunnerViewProps> = ({
             <span>單步執行 (#{currentStepIndex + 1})</span>
           </button>
           <button
-            onClick={handleRunAll}
+            onClick={() => handleRunAll()}
             className="px-4 py-1.5 text-xs font-semibold text-slate-950 bg-amber-400 hover:bg-amber-300 rounded transition-colors flex items-center gap-1.5 shadow-xs"
           >
             <Play className="w-3.5 h-3.5 fill-current" />

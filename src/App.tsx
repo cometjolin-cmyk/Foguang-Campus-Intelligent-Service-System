@@ -27,8 +27,12 @@ import {
 } from "lucide-react";
 
 export default function App() {
-  // 核心單例校園系統實例
-  const campus = useMemo(() => new Campus(), []);
+  // 核心單例校園系統實例（初始載入經典規格示範資料）
+  const campus = useMemo(() => {
+    const c = new Campus();
+    c.loadDemoData();
+    return c;
+  }, []);
   const [, setRenderTrigger] = useState(0);
 
   // 導航分頁狀態
@@ -37,6 +41,14 @@ export default function App() {
   const [activeDsModule, setActiveDsModule] = useState<
     "queue" | "bst" | "linkedlist" | "stack"
   >("queue");
+
+  // 測試執行統計狀態與觸發鍵
+  const [autoRunKey, setAutoRunKey] = useState(0);
+  const [testStats, setTestStats] = useState({
+    executed: 0,
+    passed: 0,
+    total: STANDARD_TEST_CASES.length,
+  });
 
   const triggerUpdate = () => {
     setRenderTrigger((prev) => prev + 1);
@@ -48,9 +60,16 @@ export default function App() {
     triggerUpdate();
   };
 
-  // 頂部「全量執行測試」跳轉並執行
+  // 重新載入示範資料
+  const handleLoadDemo = () => {
+    campus.loadDemoData();
+    triggerUpdate();
+  };
+
+  // 頂部「全量執行測試」跳轉並自動執行
   const handleRunAllTestsFromHeader = () => {
     setActiveTab("tests");
+    setAutoRunKey((prev) => prev + 1);
   };
 
   return (
@@ -61,8 +80,8 @@ export default function App() {
         setActiveTab={setActiveTab}
         onRunAllTests={handleRunAllTestsFromHeader}
         onReset={handleResetSystem}
-        passedTestsCount={STANDARD_TEST_CASES.length}
-        totalTestsCount={STANDARD_TEST_CASES.length}
+        passedTestsCount={testStats.passed}
+        totalTestsCount={testStats.total}
       />
 
       {/* Hero 區域：介紹系統情境與四大資料結構對照 */}
@@ -87,6 +106,23 @@ export default function App() {
                 <strong className="text-white">鏈結串列 (Linked List)</strong> 串接個人化行事曆、
                 <strong className="text-white">堆疊 (Stack)</strong> 實作校園導覽頁面返回。
               </p>
+
+              {/* 快速載入示範狀態與重設控制 */}
+              <div className="flex items-center gap-3 pt-2">
+                <button
+                  onClick={handleLoadDemo}
+                  className="px-3 py-1.5 text-xs font-semibold text-slate-900 bg-amber-400 hover:bg-amber-300 rounded transition-colors flex items-center gap-1.5 shadow-xs"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>載入題目經典示範資料</span>
+                </button>
+                <button
+                  onClick={handleResetSystem}
+                  className="px-3 py-1.5 text-xs font-medium text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 rounded border border-slate-700 transition-colors"
+                >
+                  清空重設系統
+                </button>
+              </div>
             </div>
 
             {/* 即時系統運行數據 */}
@@ -208,7 +244,12 @@ export default function App() {
 
         {/* 2. 30 筆測試驗證套件 */}
         {activeTab === "tests" && (
-          <TestRunnerView campus={campus} onStateUpdate={triggerUpdate} />
+          <TestRunnerView
+            campus={campus}
+            onStateUpdate={triggerUpdate}
+            autoRunKey={autoRunKey}
+            onStatsUpdate={setTestStats}
+          />
         )}
 
         {/* 3. JSON 終端機 */}

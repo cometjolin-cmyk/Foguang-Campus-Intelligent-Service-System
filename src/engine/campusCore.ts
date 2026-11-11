@@ -421,4 +421,62 @@ export class Campus {
     this.calendars = new Map();
     this.pages = ["首頁"];
   }
+
+  /** 載入佛光校園經典題目規格示範資料 */
+  loadDemoData(): void {
+    this.reset();
+    // 1. 佇列
+    this.handle({ cmd: "reserve", student_id: "S1001" });
+    this.handle({ cmd: "reserve", student_id: "S1002" });
+    // 2. BST
+    this.handle({ cmd: "add_book", call_no: 305, title: "資料結構" });
+    this.handle({ cmd: "add_book", call_no: 102, title: "佛學概論" });
+    this.handle({ cmd: "add_book", call_no: 410, title: "Python程式設計" });
+    this.handle({ cmd: "add_book", call_no: 210, title: "演算法" });
+    // 3. 鏈結串列
+    this.handle({
+      cmd: "add_event",
+      student_id: "S1001",
+      day: "週一",
+      time: "09:00",
+      location: "雲起樓",
+      event: "資料結構課",
+    });
+    this.handle({
+      cmd: "add_event",
+      student_id: "S1001",
+      day: "週二",
+      time: "14:00",
+      location: "圖書館",
+      event: "借書",
+    });
+    this.handle({
+      cmd: "add_event",
+      student_id: "S1001",
+      day: "週三",
+      time: "10:00",
+      location: "討論室",
+      event: "小組討論",
+    });
+    this.handle({
+      cmd: "add_event",
+      student_id: "S1001",
+      day: "週二",
+      time: "18:00",
+      location: "雲起樓",
+      event: "社團開會",
+      position: 2,
+    });
+    this.handle({
+      cmd: "add_event",
+      student_id: "S1001",
+      day: "週三",
+      time: "15:30",
+      location: "雲起樓",
+      event: "期中考",
+    });
+    // 4. 堆疊
+    this.handle({ cmd: "visit", page: "圖書館專區" });
+    this.handle({ cmd: "visit", page: "討論室預約頁" });
+  }
 }

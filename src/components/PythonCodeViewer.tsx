@@ -10,6 +10,7 @@ import { Code, Copy, Check, Download, Layers } from "lucide-react";
 
 export const PythonCodeViewer: React.FC = () => {
   const [copied, setCopied] = useState(false);
+  const [activeCodeTab, setActiveCodeTab] = useState<"source" | "output">("source");
 
   const handleCopyCode = () => {
     navigator.clipboard.writeText(PYTHON_SOURCE_CODE);
@@ -204,22 +205,53 @@ export const PythonCodeViewer: React.FC = () => {
         </div>
       </div>
 
-      {/* 原始碼檢視器 */}
+      {/* 原始碼與執行輸出檢視器 */}
       <div className="bg-slate-950 rounded-lg border border-slate-800 overflow-hidden shadow-xs">
         <div className="px-4 py-2.5 bg-slate-900 border-b border-slate-800 flex items-center justify-between text-xs text-slate-400">
           <div className="flex items-center gap-2">
-            <Code className="w-4 h-4 text-amber-400" />
-            <span className="font-mono text-slate-200 font-bold">campus.py</span>
-            <span className="text-[11px] text-slate-500 font-mono">(Python 3.10+)</span>
+            <button
+              onClick={() => setActiveCodeTab("source")}
+              className={`px-2.5 py-1 rounded text-xs font-mono font-medium transition-colors ${
+                activeCodeTab === "source"
+                  ? "bg-slate-800 text-amber-400 font-bold"
+                  : "text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              campus.py 原始碼 ({PYTHON_SOURCE_CODE.split("\n").length} 行)
+            </button>
+            <button
+              onClick={() => setActiveCodeTab("output")}
+              className={`px-2.5 py-1 rounded text-xs font-mono font-medium transition-colors ${
+                activeCodeTab === "output"
+                  ? "bg-slate-800 text-emerald-400 font-bold"
+                  : "text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              $ python3 campus.py 終端輸出 (30行 JSON)
+            </button>
           </div>
-          <span className="text-[11px] font-mono text-slate-400">
-            {PYTHON_SOURCE_CODE.split("\n").length} 行
+          <span className="text-[11px] font-mono text-slate-500">
+            {activeCodeTab === "source" ? "Python 3.10+" : "標準輸出 stdout"}
           </span>
         </div>
 
-        <pre className="p-4 text-xs font-mono text-slate-200 overflow-x-auto leading-relaxed max-h-[600px] overflow-y-auto">
-          <code>{PYTHON_SOURCE_CODE}</code>
-        </pre>
+        {activeCodeTab === "source" ? (
+          <pre className="p-4 text-xs font-mono text-slate-200 overflow-x-auto leading-relaxed max-h-[600px] overflow-y-auto">
+            <code>{PYTHON_SOURCE_CODE}</code>
+          </pre>
+        ) : (
+          <div className="p-4 text-xs font-mono text-emerald-400 overflow-x-auto leading-relaxed max-h-[600px] overflow-y-auto space-y-1">
+            <div className="text-slate-500 pb-2 border-b border-slate-800 select-none">
+              $ python3 campus.py (以 test_input.json 30 筆指令執行)
+            </div>
+            {STANDARD_TEST_CASES.map((tc, idx) => (
+              <div key={idx} className="hover:bg-slate-900/60 py-0.5 px-1 rounded flex items-start gap-2">
+                <span className="text-slate-600 select-none w-6 text-right shrink-0">{idx + 1}</span>
+                <span className="break-all">{JSON.stringify(tc.expected)}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

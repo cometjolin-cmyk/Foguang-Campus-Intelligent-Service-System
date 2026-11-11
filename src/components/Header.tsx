@@ -61,9 +61,13 @@ export const Header: React.FC<HeaderProps> = ({
             }`}
           >
             <span>30筆測試驗證</span>
-            {passedTestsCount === totalTestsCount && (
+            {passedTestsCount > 0 ? (
               <span className="text-xs text-emerald-400 font-mono">
                 ({passedTestsCount}/{totalTestsCount})
+              </span>
+            ) : (
+              <span className="text-xs text-slate-400 font-mono">
+                ({totalTestsCount}筆)
               </span>
             )}
           </button>
