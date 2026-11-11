@@ -1,0 +1,6 @@
+{
+  "name": "佛光校園智慧服務系統",
+  "description": "佛光大學校園智慧服務系統：四大資料結構（Queue、BST、Linked List、Stack）視覺化互動演練與工程化提示詞實踐平台",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
