@@ -45,14 +45,7 @@ export const JsonConsole: React.FC<JsonConsoleProps> = ({
   onStateUpdate,
 }) => {
   const [inputJson, setInputJson] = useState('{"cmd":"reserve","student_id":"S1001"}');
-  const [logs, setLogs] = useState<LogEntry[]>([
-    {
-      id: "init-1",
-      timestamp: "00:00:00",
-      input: '{"cmd":"reserve","student_id":"S1001"}',
-      output: { status: "ok", ticket: "Q-001", ahead: 0 },
-    },
-  ]);
+  const [logs, setLogs] = useState<LogEntry[]>([]);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const handleSend = () => {
@@ -155,6 +148,12 @@ export const JsonConsole: React.FC<JsonConsoleProps> = ({
               rows={2}
               value={inputJson}
               onChange={(e) => setInputJson(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSend();
+                }
+              }}
               className="flex-1 px-3 py-2 text-xs font-mono bg-slate-900 text-emerald-400 rounded-lg border border-slate-700 focus:outline-hidden focus:ring-2 focus:ring-amber-500 resize-none leading-relaxed"
             />
             <button

@@ -65,7 +65,7 @@ export class BookBST {
     return { node: null, steps, path };
   }
 
-  /** 中序走訪：由小到大。O(n) */
+  /** 中序走訪：由小到大 (Left → Root → Right)。O(n) */
   inorder(node: BookNode | null = this.root): { call_no: number; title: string }[] {
     if (node === null) {
       return [];
@@ -75,6 +75,36 @@ export class BookBST {
       { call_no: node.call_no, title: node.title },
       ...this.inorder(node.right),
     ];
+  }
+
+  /** 前序走訪 (Root → Left → Right)。O(n) */
+  preorder(node: BookNode | null = this.root): { call_no: number; title: string }[] {
+    if (node === null) {
+      return [];
+    }
+    return [
+      { call_no: node.call_no, title: node.title },
+      ...this.preorder(node.left),
+      ...this.preorder(node.right),
+    ];
+  }
+
+  /** 後序走訪 (Left → Right → Root)。O(n) */
+  postorder(node: BookNode | null = this.root): { call_no: number; title: string }[] {
+    if (node === null) {
+      return [];
+    }
+    return [
+      ...this.postorder(node.left),
+      ...this.postorder(node.right),
+      { call_no: node.call_no, title: node.title },
+    ];
+  }
+
+  /** 計算樹高 (Tree Height)。O(n) */
+  height(node: BookNode | null = this.root): number {
+    if (node === null) return 0;
+    return 1 + Math.max(this.height(node.left), this.height(node.right));
   }
 
   /** 產生文字格式樹狀圖 */
@@ -222,7 +252,7 @@ export class Campus {
   /** 處理單一請求 */
   handle(req: JsonRequest): JsonResponse {
     try {
-      if (!req || typeof req !== "object" || !req.cmd) {
+      if (!req || typeof req !== "object" || Array.isArray(req) || typeof req.cmd !== "string" || !req.cmd) {
         return { status: "error", message: "invalid command or missing field" };
       }
 
@@ -332,7 +362,7 @@ export class Campus {
     }
 
     let pos: number | undefined = undefined;
-    if (r.position !== undefined) {
+    if (r.position !== undefined && r.position !== null) {
       if (typeof r.position !== "number" || !Number.isInteger(r.position) || r.position < 0) {
         return { status: "error", message: "position out of range" };
       }

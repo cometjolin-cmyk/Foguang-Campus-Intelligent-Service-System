@@ -5,8 +5,8 @@
 
 import React, { useState } from "react";
 import { Campus, JsonResponse } from "../engine/campusCore";
-import { STANDARD_TEST_CASES, TestCase } from "../data/standardTests";
-import { Play, StepForward, RotateCcw, CheckCircle2, XCircle, Search, Filter } from "lucide-react";
+import { STANDARD_TEST_CASES } from "../data/standardTests";
+import { Play, StepForward, RotateCcw, CheckCircle2, XCircle, Search } from "lucide-react";
 
 interface TestRunnerViewProps {
   campus: Campus;
@@ -31,31 +31,29 @@ export const TestRunnerView: React.FC<TestRunnerViewProps> = ({
   }>({});
   const [filterCategory, setFilterCategory] = useState<string>("All");
   const [searchQuery, setSearchQuery] = useState("");
-  const [isolatedMode, setIsolatedMode] = useState(false);
 
   const compareResponses = (actual: any, expected: any): boolean => {
     return JSON.stringify(actual) === JSON.stringify(expected);
   };
 
   // 1. 全量執行全部 30 筆測試
-  const handleRunAll = (isolate: boolean = isolatedMode) => {
-    const targetCampus = isolate ? new Campus() : campus;
-    targetCampus.reset();
-    const results: any = {};
+  const handleRunAll = () => {
+    campus.reset();
+    const results: Record<number, { actual: JsonResponse; passed: boolean; executed: boolean }> = {};
+    let realPassed = 0;
     for (const tc of STANDARD_TEST_CASES) {
-      const actual = targetCampus.handle(tc.input);
+      const actual = campus.handle(tc.input);
       const passed = compareResponses(actual, tc.expected);
+      if (passed) realPassed++;
       results[tc.id] = { actual, passed, executed: true };
     }
     setTestResults(results);
     setCurrentStepIndex(STANDARD_TEST_CASES.length);
-    if (!isolate) {
-      onStateUpdate();
-    }
+    onStateUpdate();
     if (onStatsUpdate) {
       onStatsUpdate({
         executed: STANDARD_TEST_CASES.length,
-        passed: STANDARD_TEST_CASES.length,
+        passed: realPassed,
         total: STANDARD_TEST_CASES.length,
       });
     }
@@ -70,6 +68,9 @@ export const TestRunnerView: React.FC<TestRunnerViewProps> = ({
   // 2. 單步執行下一筆
   const handleStepForward = () => {
     if (currentStepIndex >= STANDARD_TEST_CASES.length) return;
+    if (currentStepIndex === 0) {
+      campus.reset();
+    }
     const tc = STANDARD_TEST_CASES[currentStepIndex];
     const actual = campus.handle(tc.input);
     const passed = compareResponses(actual, tc.expected);

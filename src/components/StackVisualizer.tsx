@@ -3,13 +3,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import { Campus } from "../engine/campusCore";
+import { LiveCodeTracer } from "./LiveCodeTracer";
 import { ArrowLeft, Layers, Compass, BookOpen, Clock, School, Trophy, Trees, AlertCircle, CheckCircle2 } from "lucide-react";
 
 interface StackVisualizerProps {
   campus: Campus;
   onActionTriggered: () => void;
+  systemVersion?: number;
 }
 
 const AVAILABLE_PAGES = [
@@ -21,11 +24,48 @@ const AVAILABLE_PAGES = [
   { name: "林美步道生態區", icon: Trees, desc: "佛光十六泉與林美山林生態導覽" },
 ];
 
+const STACK_CODE_LINES = [
+  "def _visit(self, r):            # 壓棧 Push: O(1)",
+  "    self.pages.append(r['page'])  # 將新頁面放到堆疊頂端 TOP",
+  "    return {'status': 'ok', 'current': self.pages[-1]}",
+  "",
+  "def _back(self, r):             # 彈棧 Pop: O(1)",
+  "    if len(self.pages) == 1:    # 棧底保護（防止 Underflow）",
+  "        return {'status': 'error', 'message': 'already at home'}",
+  "    self.pages.pop()            # 移除頂端頁面，露出上一頁",
+  "    return {'status': 'ok', 'current': self.pages[-1]}",
+];
+
 export const StackVisualizer: React.FC<StackVisualizerProps> = ({
   campus,
   onActionTriggered,
+  systemVersion = 0,
 }) => {
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; msg: string } | null>(null);
+  const [traceState, setTraceState] = useState<{
+    line: number;
+    desc: string;
+    vars: Record<string, string | number>;
+  }>({
+    line: 2,
+    desc: "堆疊就緒：進入頁面執行 Push (append)，按返回執行 Pop (pop)",
+    vars: {
+      top: campus.pages[campus.pages.length - 1],
+      depth: campus.pages.length,
+    },
+  });
+
+  useEffect(() => {
+    setFeedback(null);
+    setTraceState({
+      line: 2,
+      desc: "堆疊已更新：進入頁面執行 Push (append)，按返回執行 Pop (pop)",
+      vars: {
+        top: campus.pages[campus.pages.length - 1],
+        depth: campus.pages.length,
+      },
+    });
+  }, [systemVersion]);
 
   const currentPage = campus.pages[campus.pages.length - 1];
 
@@ -37,33 +77,62 @@ export const StackVisualizer: React.FC<StackVisualizerProps> = ({
         type: "success",
         msg: `進入新頁面 (Push)：【${res.current}】，堆疊高度 ${campus.pages.length}`,
       });
+      setTraceState({
+        line: 2,
+        desc: `Push 壓棧：將「${pageName}」放入堆疊最頂端，TOP 指標上移`,
+        vars: {
+          pushed: pageName,
+          top: res.current!,
+          depth: campus.pages.length,
+        },
+      });
     }
     onActionTriggered();
   };
 
   // 2. Back 返回上一頁 (Pop)
   const handleBack = () => {
+    const poppedCandidate = campus.pages[campus.pages.length - 1];
     const res = campus.handle({ cmd: "back" });
     if (res.status === "ok") {
       setFeedback({
         type: "success",
-        msg: `返回上一頁 (Pop)：回到【${res.current}】，堆疊高度 ${campus.pages.length}`,
+        msg: `返回上一頁 (Pop)：彈出【${poppedCandidate}】，回到【${res.current}】`,
+      });
+      setTraceState({
+        line: 8,
+        desc: `Pop 彈棧：移出頂端頁面「${poppedCandidate}」，TOP 指標退回「${res.current}」`,
+        vars: {
+          popped: poppedCandidate,
+          new_top: res.current!,
+          depth: campus.pages.length,
+        },
       });
     } else {
       setFeedback({
         type: "error",
         msg: `無法返回：${res.message} (目前已在最底層首頁)`,
       });
+      setTraceState({
+        line: 7,
+        desc: "棧底保護觸發 (len == 1)：堆疊只剩 Base「首頁」，不可再 Pop 以防止 Underflow",
+        vars: {
+          depth: 1,
+          guard: "already at home",
+        },
+      });
     }
     onActionTriggered();
   };
 
   const getPageInfo = (name: string) => {
-    return AVAILABLE_PAGES.find((p) => p.name === name) || {
-      name,
-      icon: Compass,
-      desc: "校園專區導覽頁",
-    };
+    return (
+      AVAILABLE_PAGES.find((p) => p.name === name) || {
+        name,
+        icon: Compass,
+        desc: "校園專區導覽頁",
+      }
+    );
   };
 
   const activePageInfo = getPageInfo(currentPage);
@@ -85,7 +154,7 @@ export const StackVisualizer: React.FC<StackVisualizerProps> = ({
             校園導覽 APP 頁面歷史返回 (Navigation Stack)
           </h2>
           <p className="text-sm text-slate-600 mt-0.5">
-            進入新頁面 push 入棧，按返回 pop 出棧回到上一頁；退至最底層「首頁」時防禦回傳 already at home。
+            所有操作僅發生在頂端 (Top)：進入新頁面 push 入棧，按返回 pop 出棧回到上一頁。
           </p>
         </div>
 
@@ -99,7 +168,7 @@ export const StackVisualizer: React.FC<StackVisualizerProps> = ({
             className="px-3 py-1.5 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded transition-colors flex items-center gap-1.5"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            <span>執行返回 (back)</span>
+            <span>執行返回 (pop)</span>
           </button>
         </div>
       </div>
@@ -121,7 +190,7 @@ export const StackVisualizer: React.FC<StackVisualizerProps> = ({
                   <button
                     key={page.name}
                     onClick={() => handleVisit(page.name)}
-                    className="w-full text-left p-3 rounded-lg border border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/50 transition-colors flex items-center gap-3 group"
+                    className="w-full text-left p-2.5 rounded-lg border border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/50 transition-colors flex items-center gap-3 group"
                   >
                     <div className="w-8 h-8 rounded-md bg-slate-100 group-hover:bg-indigo-100 flex items-center justify-center shrink-0 transition-colors">
                       <Icon className="w-4 h-4 text-slate-700 group-hover:text-indigo-700" />
@@ -160,19 +229,13 @@ export const StackVisualizer: React.FC<StackVisualizerProps> = ({
                   onClick={handleBack}
                   className="px-2 py-1 text-[11px] bg-indigo-50 hover:bg-indigo-100 text-indigo-800 rounded font-mono font-medium"
                 >
-                  3. back (至圖書館)
-                </button>
-                <button
-                  onClick={handleBack}
-                  className="px-2 py-1 text-[11px] bg-indigo-50 hover:bg-indigo-100 text-indigo-800 rounded font-mono font-medium"
-                >
-                  4. back (至首頁)
+                  3. back (Pop)
                 </button>
                 <button
                   onClick={handleBack}
                   className="px-2 py-1 text-[11px] bg-rose-50 hover:bg-rose-100 text-rose-700 rounded font-mono font-medium"
                 >
-                  5. [測試已在首頁] back
+                  4. 測試首頁保護
                 </button>
               </div>
             </div>
@@ -189,9 +252,9 @@ export const StackVisualizer: React.FC<StackVisualizerProps> = ({
             >
               <div className="font-semibold flex items-center gap-1.5">
                 {feedback.type === "error" ? (
-                  <AlertCircle className="w-3.5 h-3.5" />
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                 ) : (
-                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
                 )}
                 <span>{feedback.msg}</span>
               </div>
@@ -199,8 +262,8 @@ export const StackVisualizer: React.FC<StackVisualizerProps> = ({
           )}
         </div>
 
-        {/* 中間：手機 APP 仿真畫面 */}
-        <div className="lg:col-span-4 flex justify-center">
+        {/* 中間：手機 APP 仿真畫面 + 程式碼追蹤 */}
+        <div className="lg:col-span-4 space-y-4 flex flex-col items-center">
           <div className="w-full max-w-[320px] bg-slate-900 p-3 rounded-2xl shadow-md border border-slate-700">
             {/* 手機螢幕頂部感測器 */}
             <div className="flex items-center justify-between px-3 py-1 text-[10px] text-slate-400 font-mono mb-2">
@@ -210,7 +273,7 @@ export const StackVisualizer: React.FC<StackVisualizerProps> = ({
             </div>
 
             {/* 手機螢幕內容 */}
-            <div className="bg-white rounded-xl overflow-hidden min-h-[380px] flex flex-col">
+            <div className="bg-white rounded-xl overflow-hidden min-h-[340px] flex flex-col">
               {/* App 頂部導航列 */}
               <div className="bg-slate-900 text-white px-3 py-2.5 flex items-center justify-between">
                 <button
@@ -233,7 +296,13 @@ export const StackVisualizer: React.FC<StackVisualizerProps> = ({
 
               {/* App 頁面主體 */}
               <div className="p-4 flex-1 flex flex-col justify-between bg-slate-50">
-                <div className="space-y-3">
+                <motion.div
+                  key={`${currentPage}-${campus.pages.length}`}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="space-y-3"
+                >
                   <div className="w-12 h-12 rounded-xl bg-indigo-100 flex items-center justify-center text-indigo-700 mx-auto">
                     <ActiveIcon className="w-6 h-6" />
                   </div>
@@ -243,12 +312,12 @@ export const StackVisualizer: React.FC<StackVisualizerProps> = ({
                   </div>
 
                   <div className="p-3 bg-white border border-slate-200 rounded-lg text-xs space-y-1.5">
-                    <div className="text-slate-500 text-[11px]">佛光校園智慧服務現況：</div>
-                    <div className="font-semibold text-slate-800">
-                      當前路徑：{campus.pages.join(" / ")}
+                    <div className="text-slate-500 text-[11px]">導覽麵包屑 (Stack 路徑)：</div>
+                    <div className="font-semibold text-slate-800 break-words">
+                      {campus.pages.join(" / ")}
                     </div>
                   </div>
-                </div>
+                </motion.div>
 
                 <div className="pt-3 border-t border-slate-200">
                   <button
@@ -263,63 +332,75 @@ export const StackVisualizer: React.FC<StackVisualizerProps> = ({
           </div>
         </div>
 
-        {/* 右側：堆疊視覺化直立槽 (Stack Column) */}
+        {/* 右側：堆疊視覺化直立槽 (Stack Column) + 追蹤器 */}
         <div className="lg:col-span-4 space-y-4">
           <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-xs">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <Layers className="w-4 h-4 text-indigo-700" />
                 <h3 className="text-sm font-semibold text-slate-900">
-                  堆疊內部狀態 (LIFO Stack)
+                  堆疊容器狀態 (LIFO 垂直棧槽)
                 </h3>
               </div>
-              <span className="text-[11px] text-slate-500 font-mono">[頂部出入 Top]</span>
+              <span className="text-[11px] text-indigo-700 font-mono font-semibold">↕ 單口進出</span>
             </div>
 
-            {/* 垂直堆疊槽 */}
-            <div className="bg-slate-50 border-2 border-dashed border-slate-300 rounded-lg p-3 min-h-[260px] flex flex-col-reverse justify-start gap-2">
-              {campus.pages.map((page, idx) => {
-                const isTop = idx === campus.pages.length - 1;
-                return (
-                  <div
-                    key={`${page}-${idx}`}
-                    className={`p-2.5 rounded-md border text-xs transition-all flex items-center justify-between ${
-                      isTop
-                        ? "bg-indigo-50 border-indigo-400 text-indigo-900 font-bold shadow-xs ring-2 ring-indigo-200"
-                        : "bg-white border-slate-200 text-slate-700"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-[10px] text-slate-400">
-                        [{idx}]
-                      </span>
-                      <span>{page}</span>
-                    </div>
-                    {isTop && (
-                      <span className="text-[10px] font-mono px-1.5 py-0.5 bg-indigo-600 text-white rounded">
-                        TOP (Current)
-                      </span>
-                    )}
-                  </div>
-                );
-              })}
+            {/* 垂直堆疊槽（U 型容器視覺） */}
+            <div className="bg-slate-50 border-x-2 border-b-2 border-slate-400 rounded-b-xl p-3 min-h-[250px] flex flex-col-reverse justify-start gap-2 relative">
+              <AnimatePresence mode="popLayout">
+                {campus.pages.map((page, idx) => {
+                  const isTop = idx === campus.pages.length - 1;
+                  const isBase = idx === 0;
+                  return (
+                    <motion.div
+                      key={`${page}-${idx}`}
+                      layout
+                      initial={{ opacity: 0, y: -32, scale: 0.94 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -32, scale: 0.94 }}
+                      transition={{ duration: 0.22 }}
+                      className={`p-2.5 rounded-md border text-xs transition-all flex items-center justify-between ${
+                        isTop
+                          ? "bg-indigo-50 border-indigo-400 text-indigo-900 font-bold shadow-xs ring-2 ring-indigo-200"
+                          : "bg-white border-slate-200 text-slate-700"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="font-mono text-[10px] text-slate-400 shrink-0">
+                          [{idx}]
+                        </span>
+                        <span className="truncate">{page}</span>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        {isBase && (
+                          <span className="text-[10px] font-mono px-1.5 py-0.5 bg-slate-200 text-slate-700 rounded">
+                            BASE
+                          </span>
+                        )}
+                        {isTop && (
+                          <span className="text-[10px] font-mono px-1.5 py-0.5 bg-indigo-600 text-white rounded">
+                            TOP
+                          </span>
+                        )}
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </AnimatePresence>
             </div>
 
-            <div className="mt-2 text-center text-[11px] text-slate-400 font-mono">
-              ↑ 頂端 Push / Pop 介面 | 底層 Base (首頁) ↓
+            <div className="mt-2 text-center text-[11px] text-slate-500 font-mono">
+              ↑ 頂端 TOP (Push 落入 / Pop 彈出) | 底端 BASE (受保護) ↓
             </div>
           </div>
 
-          {/* 演算法複雜度手冊卡片 */}
-          <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-xs text-slate-600">
-            <div className="font-semibold text-slate-800 mb-1">演算法與複雜度解析：</div>
-            <p>
-              • <strong>堆疊 (Stack)</strong> 遵循後進先出 (LIFO) 原則，最後瀏覽的頁面最先被彈出。<br />
-              • Python 程式碼直接使用標準清單的 <code className="font-mono text-slate-800">pages.append()</code> (Push) 與 <code className="font-mono text-slate-800">pages.pop()</code> (Pop)。<br />
-              • 兩者在尾端操作均具備均攤 <strong className="font-mono text-indigo-700">O(1)</strong> 時間複雜度。<br />
-              • 邊界防禦：當堆疊大小為 1（僅剩首頁）時，拒絕 pop 並回傳錯誤訊息，防止頁面棧空崩潰。
-            </p>
-          </div>
+          <LiveCodeTracer
+            title="Python Stack (list) 即時執行追蹤"
+            codeLines={STACK_CODE_LINES}
+            activeLine={traceState.line}
+            stepDescription={traceState.desc}
+            variables={traceState.vars}
+          />
         </div>
       </div>
     </div>
